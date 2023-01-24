@@ -311,7 +311,14 @@ public class Capture extends PImage implements PConstants {
     if (useBufferSink) {
 
       if (bufferSink == null) {
-        Object cache = parent.g.getCache(Capture.this);
+        Object cache = null;
+        try {
+          Method m = parent.g.getClass().getMethod("getTexture", new Class[] { PImage.class });
+          cache = m.invoke(parent.g, new Object[] { Capture.this });
+        }
+        catch (Exception e) {
+          e.printStackTrace();
+        }
         if (cache != null) {
           setBufferSink(cache);
           getSinkMethods();
@@ -343,6 +350,7 @@ public class Capture extends PImage implements PConstants {
         // and the pixels will be copied to the texture when the OpenGL
         // renderer needs to draw it.
         sinkGetMethod.invoke(bufferSink, new Object[] { pixels });
+	updatePixels();
       } catch (Exception e) {
         e.printStackTrace();
       }
