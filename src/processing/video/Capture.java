@@ -37,6 +37,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.EnumSet;
 import java.util.List;
 import java.lang.reflect.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.freedesktop.gstreamer.*;
 import org.freedesktop.gstreamer.Buffer;
@@ -44,18 +46,21 @@ import org.freedesktop.gstreamer.device.*;
 import org.freedesktop.gstreamer.elements.*;
 import org.freedesktop.gstreamer.event.SeekFlags;
 import org.freedesktop.gstreamer.event.SeekType;
-
+import static org.freedesktop.gstreamer.lowlevel.GstStructureAPI.GSTSTRUCTURE_API;
+import static org.freedesktop.gstreamer.lowlevel.GstValueAPI.GSTVALUE_API;
+import org.freedesktop.gstreamer.lowlevel.GValueAPI.GValue;
+import org.freedesktop.gstreamer.lowlevel.GType;
 
 /**
- * Datatype for storing and manipulating video frames from an attached 
- * capture device such as a camera. Use <b>Capture.list()</b> to show 
- * the names of any attached devices. Using the version of the constructor 
- * without <b>name</b> will attempt to use the last device used by a 
+ * Datatype for storing and manipulating video frames from an attached
+ * capture device such as a camera. Use <b>Capture.list()</b> to show
+ * the names of any attached devices. Using the version of the constructor
+ * without <b>name</b> will attempt to use the last device used by a
  * QuickTime program.
  *
  * @webref capture
- * @webBrief Datatype for storing and manipulating video frames from an 
- * attached capture device such as a camera.
+ * @webBrief Datatype for storing and manipulating video frames from an
+ *           attached capture device such as a camera.
  * @usage application
  */
 public class Capture extends PImage implements PConstants {
@@ -92,75 +97,75 @@ public class Capture extends PImage implements PConstants {
   protected Method sinkGetMethod;
 
   protected String device;
-  protected static List<Device> devices;    // we're caching this list for speed reasons
+  protected static List<Device> devices; // we're caching this list for speed reasons
 
   NewSampleListener newSampleListener;
   NewPrerollListener newPrerollListener;
   private final Lock bufferLock = new ReentrantLock();
 
-
   /**
-   *  Open the default capture device
-   *  @param parent PApplet, typically "this"
+   * Open the default capture device
+   * 
+   * @param parent PApplet, typically "this"
    */
   public Capture(PApplet parent) {
     // Attempt to use a default resolution
     this(parent, 640, 480, null, 30);
   }
 
-
   /**
-   *  Open a specific capture device
-   *  @param device device name
-   *  @see Capture#list()
-   *  @see Capture#listRawNames()
+   * Open a specific capture device
+   * 
+   * @param device device name
+   * @see Capture#list()
+   * @see Capture#listRawNames()
    */
   public Capture(PApplet parent, String device) {
     // Attempt to use a default resolution
     this(parent, 640, 480, device, 30);
   }
 
-
   /**
-   *  Open the default capture device with a given resolution
-   *  @param width width in pixels
-   *  @param height height in pixels
+   * Open the default capture device with a given resolution
+   * 
+   * @param width  width in pixels
+   * @param height height in pixels
    */
   public Capture(PApplet parent, int width, int height) {
     this(parent, width, height, null, 30);
   }
 
-
   /**
-   *  Open the default capture device with a given resolution and framerate
-   *  @param fps frames per second
+   * Open the default capture device with a given resolution and framerate
+   * 
+   * @param fps frames per second
    */
   public Capture(PApplet parent, int width, int height, float fps) {
     this(parent, width, height, null, fps);
   }
 
-
   /**
-   *  Open a specific capture device with a given resolution
-   *  @see Capture#list()
+   * Open a specific capture device with a given resolution
+   * 
+   * @see Capture#list()
    */
   public Capture(PApplet parent, int width, int height, String device) {
     this(parent, width, height, device, 30);
   }
 
-
   /**
-   *  Open a specific capture device with a given framerate
-   *  @see Capture#list()
+   * Open a specific capture device with a given framerate
+   * 
+   * @see Capture#list()
    */
   public Capture(PApplet parent, String device, float fps) {
     this(parent, 640, 480, device, fps);
   }
 
-
   /**
-   *  Open a specific capture device with a given resolution and framerate
-   *  @see Capture#list()
+   * Open a specific capture device with a given resolution and framerate
+   * 
+   * @see Capture#list()
    */
   public Capture(PApplet parent, int width, int height, String device, float fps) {
     super(width, height, RGB);
@@ -168,7 +173,6 @@ public class Capture extends PImage implements PConstants {
     this.frameRate = fps;
     initGStreamer(parent);
   }
-
 
   /**
    * Disposes all the native resources associated to this capture device.
@@ -203,7 +207,6 @@ public class Capture extends PImage implements PConstants {
     }
   }
 
-
   /**
    * Finalizer of the class.
    */
@@ -211,13 +214,13 @@ public class Capture extends PImage implements PConstants {
     try {
       dispose();
     } finally {
-//      super.finalize();
+      // super.finalize();
     }
   }
 
-
   /**
-   * Sets how often frames are read from the capture device. Setting the <b>fps</b>
+   * Sets how often frames are read from the capture device. Setting the
+   * <b>fps</b>
    * parameter to 4, for example, will cause 4 frames to be read per second.
    *
    * @webref capture
@@ -244,19 +247,18 @@ public class Capture extends PImage implements PConstants {
     frameRate = ifps;
   }
 
-
   /**
    * Returns "true" when a new frame from the device is available to read.
    *
    * @webref capture
-   * @webBrief Returns "true" when a new frame from the device is available to read.
+   * @webBrief Returns "true" when a new frame from the device is available to
+   *           read.
    * @usage web_application
    * @brief Returns "true" when a new frame is available to read.
    */
   public boolean available() {
     return available;
   }
-
 
   /**
    * Starts capturing frames from the selected device.
@@ -275,7 +277,6 @@ public class Capture extends PImage implements PConstants {
     capturing = true;
   }
 
-
   /**
    * Stops capturing frames from an attached device.
    *
@@ -292,7 +293,6 @@ public class Capture extends PImage implements PConstants {
 
     capturing = false;
   }
-
 
   /**
    * Reads the current frame of the device.
@@ -329,7 +329,6 @@ public class Capture extends PImage implements PConstants {
     newFrame = true;
   }
 
-
   /**
    * Loads the pixel data for the image into its <b>pixels[]</b> array.
    */
@@ -351,42 +350,41 @@ public class Capture extends PImage implements PConstants {
     }
   }
 
-
   /**
    * Reads the color of any pixel or grabs a section of an image.
    */
   @Override
   public int get(int x, int y) {
-    if (outdatedPixels) loadPixels();
+    if (outdatedPixels)
+      loadPixels();
     return super.get(x, y);
   }
-
 
   /**
    * @param w width of pixel rectangle to get
    * @param h height of pixel rectangle to get
    */
   public PImage get(int x, int y, int w, int h) {
-    if (outdatedPixels) loadPixels();
+    if (outdatedPixels)
+      loadPixels();
     return super.get(x, y, w, h);
   }
 
-
   @Override
   public PImage copy() {
-    if (outdatedPixels) loadPixels();
+    if (outdatedPixels)
+      loadPixels();
     return super.copy();
   }
 
-
   protected void getImpl(int sourceX, int sourceY,
-                         int sourceWidth, int sourceHeight,
-                         PImage target, int targetX, int targetY) {
-    if (outdatedPixels) loadPixels();
+      int sourceWidth, int sourceHeight,
+      PImage target, int targetX, int targetY) {
+    if (outdatedPixels)
+      loadPixels();
     super.getImpl(sourceX, sourceY, sourceWidth, sourceHeight,
-                  target, targetX, targetY);
+        target, targetX, targetY);
   }
-
 
   /**
    * Check if this device object is currently capturing.
@@ -395,11 +393,9 @@ public class Capture extends PImage implements PConstants {
     return capturing;
   }
 
-
   ////////////////////////////////////////////////////////////
 
   // Initialization methods.
-
 
   protected void initGStreamer(PApplet parent) {
     this.parent = parent;
@@ -407,9 +403,9 @@ public class Capture extends PImage implements PConstants {
 
     Video.init();
 
-    if(device == null) {
+    if (device == null) {
       String[] devices = list();
-      if(devices != null && devices.length > 0) {
+      if (devices != null && devices.length > 0) {
         device = devices[0];
       } else {
         throw new IllegalStateException("Could not find any devices");
@@ -442,20 +438,18 @@ public class Capture extends PImage implements PConstants {
     }
   }
 
-
   public static String fpsToFramerate(float fps) {
     String formatted = Float.toString(fps);
     // This presumes the delimitter is always a dot
     int i = formatted.indexOf('.');
     if (Math.floor(fps) != fps) {
-      int denom = (int)Math.pow(10, formatted.length()-i-1);
-      int num = (int)(fps * denom);
+      int denom = (int) Math.pow(10, formatted.length() - i - 1);
+      int num = (int) (fps * denom);
       return num + "/" + denom;
     } else {
-      return (int)fps + "/1";
+      return (int) fps + "/1";
     }
   }
-
 
   protected void initCustomPipeline(String pstr) {
     String PIPELINE_END = " ! videorate ! videoscale ! videoconvert ! appsink name=sink";
@@ -470,7 +464,7 @@ public class Capture extends PImage implements PConstants {
     rgbSink = (AppSink) pipeline.getElementByName("sink");
     rgbSink.set("emit-signals", true);
     newSampleListener = new NewSampleListener();
-    newPrerollListener = new NewPrerollListener();        
+    newPrerollListener = new NewPrerollListener();
     rgbSink.connect(newSampleListener);
     rgbSink.connect(newPrerollListener);
 
@@ -488,9 +482,10 @@ public class Capture extends PImage implements PConstants {
     makeBusConnections(pipeline.getBus());
   }
 
-  
   protected void initDevicePipeline() {
     Element srcElement = null;
+    Device selectedDevice = null;
+
     if (device == null) {
       // Use the default device from GStreamer
       srcElement = ElementFactory.make("autovideosrc", null);
@@ -503,10 +498,12 @@ public class Capture extends PImage implements PConstants {
         monitor.close();
       }
 
-      for (int i=0; i < devices.size(); i++) {
+      for (int i = 0; i < devices.size(); i++) {
         String deviceName = assignDisplayName(devices.get(i), i);
-        if (devices.get(i).getDisplayName().equals(device) || devices.get(i).getName().equals(device) || deviceName.equals(device)) {
+        if (devices.get(i).getDisplayName().equals(device) || devices.get(i).getName().equals(device)
+            || deviceName.equals(device)) {
           srcElement = devices.get(i).createElement(null);
+          selectedDevice = devices.get(i);
           break;
         }
       }
@@ -517,21 +514,34 @@ public class Capture extends PImage implements PConstants {
       }
     }
 
+    VideoFormat selectedFormat = null;
+    if (selectedDevice != null) {
+      selectedFormat = selectFormat(selectedDevice, width, height, frameRate);
+    }
+    if (selectedFormat != null) {
+      System.out.println("Selected format: " + selectedFormat.width + "x" + selectedFormat.height +
+          (selectedFormat.framerate != null ? " @" + selectedFormat.framerateString() : ""));
+    }
+
     pipeline = new Pipeline();
 
     Element videoscale = ElementFactory.make("videoscale", null);
     Element videoconvert = ElementFactory.make("videoconvert", null);
     Element capsfilter = ElementFactory.make("capsfilter", null);
 
-    String frameRateString;
-    if (frameRate != 0.0) {
-      frameRateString = ", framerate=" + fpsToFramerate(frameRate);
-    } else {
-      System.err.println("The capture framerate cannot be zero!");
-      return;
+    int selectedWidth = width;
+    int selectedHeight = height;
+    String frameRateString = "";
+    if (selectedFormat != null) {
+      selectedWidth = selectedFormat.width;
+      selectedHeight = selectedFormat.height;
+      if (selectedFormat.framerate != null && frameRate != 0.0) {
+        frameRateString = ", framerate=" + selectedFormat.framerateString();
+      }
     }
 
-    capsfilter.set("caps", Caps.fromString("video/x-raw, width=" + width + ", height=" + height + frameRateString));
+    capsfilter.set("caps",
+        Caps.fromString("video/x-raw, width=" + selectedWidth + ", height=" + selectedHeight + frameRateString));
 
     initSink();
 
@@ -548,7 +558,6 @@ public class Capture extends PImage implements PConstants {
 
     makeBusConnections(pipeline.getBus());
   }
-
 
   /**
    * Uses a generic object as handler of the capture. This object should have a
@@ -576,7 +585,6 @@ public class Capture extends PImage implements PConstants {
     }
   }
 
-
   protected void initSink() {
     rgbSink = new AppSink("capture sink");
     rgbSink.set("emit-signals", true);
@@ -587,13 +595,14 @@ public class Capture extends PImage implements PConstants {
 
     useBufferSink = Video.useGLBufferSink && parent.g.isGL();
     if (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN) {
-      if (useBufferSink) rgbSink.setCaps(Caps.fromString("video/x-raw, format=RGBx"));
-      else rgbSink.setCaps(Caps.fromString("video/x-raw, format=BGRx"));
+      if (useBufferSink)
+        rgbSink.setCaps(Caps.fromString("video/x-raw, format=RGBx"));
+      else
+        rgbSink.setCaps(Caps.fromString("video/x-raw, format=BGRx"));
     } else {
       rgbSink.setCaps(Caps.fromString("video/x-raw, format=xRGB"));
     }
   }
-
 
   protected void setReady() {
     if (!ready) {
@@ -602,7 +611,6 @@ public class Capture extends PImage implements PConstants {
       ready = true;
     }
   }
-
 
   private void makeBusConnections(Bus bus) {
     bus.connect(new Bus.ERROR() {
@@ -621,23 +629,21 @@ public class Capture extends PImage implements PConstants {
     });
   }
 
-
   ////////////////////////////////////////////////////////////
 
   // Stream event handling.
 
-
   private void seek(double rate, long start, long stop) {
     Gst.invokeLater(new Runnable() {
       public void run() {
-        boolean res = pipeline.seek(rate, Format.TIME, EnumSet.of(SeekFlags.FLUSH, SeekFlags.ACCURATE), SeekType.SET, start, SeekType.SET, stop);
+        boolean res = pipeline.seek(rate, Format.TIME, EnumSet.of(SeekFlags.FLUSH, SeekFlags.ACCURATE), SeekType.SET,
+            start, SeekType.SET, stop);
         if (!res) {
           PGraphics.showWarning("Seek operation failed.");
         }
       }
     });
   }
-
 
   private void fireCaptureEvent() {
     if (captureEventMethod != null) {
@@ -651,11 +657,9 @@ public class Capture extends PImage implements PConstants {
     }
   }
 
-
   ////////////////////////////////////////////////////////////
 
   // Buffer source interface.
-
 
   /**
    * Sets the object to use as destination for the frames read from the stream.
@@ -670,7 +674,6 @@ public class Capture extends PImage implements PConstants {
     bufferSink = sink;
   }
 
-
   /**
    * NOTE: This is not official API and may/will be removed at any time.
    */
@@ -678,50 +681,47 @@ public class Capture extends PImage implements PConstants {
     return bufferSink != null;
   }
 
-
   /**
    * NOTE: This is not official API and may/will be removed at any time.
    */
   public synchronized void disposeBuffer(Object buf) {
-    ((Buffer)buf).dispose();
+    ((Buffer) buf).dispose();
   }
-
 
   protected void getSinkMethods() {
     try {
       sinkCopyMethod = bufferSink.getClass().getMethod("copyBufferFromSource",
-        new Class[] { Object.class, ByteBuffer.class, int.class, int.class });
+          new Class[] { Object.class, ByteBuffer.class, int.class, int.class });
     } catch (Exception e) {
       throw new RuntimeException("Capture: provided sink object doesn't have a " +
-                                 "copyBufferFromSource method.");
+          "copyBufferFromSource method.");
     }
 
     try {
       sinkSetMethod = bufferSink.getClass().getMethod("setBufferSource",
-        new Class[] { Object.class });
+          new Class[] { Object.class });
       sinkSetMethod.invoke(bufferSink, new Object[] { this });
     } catch (Exception e) {
       throw new RuntimeException("Capture: provided sink object doesn't have a " +
-                                 "setBufferSource method.");
+          "setBufferSource method.");
     }
 
     try {
       sinkDisposeMethod = bufferSink.getClass().getMethod("disposeSourceBuffer",
-        new Class[] { });
+          new Class[] {});
     } catch (Exception e) {
       throw new RuntimeException("Capture: provided sink object doesn't have " +
-                                 "a disposeSourceBuffer method.");
+          "a disposeSourceBuffer method.");
     }
 
     try {
       sinkGetMethod = bufferSink.getClass().getMethod("getBufferPixels",
-        new Class[] { int[].class });
+          new Class[] { int[].class });
     } catch (Exception e) {
       throw new RuntimeException("Capture: provided sink object doesn't have " +
-                                 "a getBufferPixels method.");
+          "a getBufferPixels method.");
     }
   }
-
 
   public synchronized void post() {
     if (useBufferSink && sinkDisposeMethod != null) {
@@ -734,12 +734,14 @@ public class Capture extends PImage implements PConstants {
   }
 
   /**
-   *  Returns a list of all capture devices, using the device's pretty display name.
-   *  Multiple devices can have identical display names, appending ' #n' to devices
-   *  with duplicate display names.
-   *  @return array of device names
-   *  @webref capture
-   *  @webBrief Get a list of all capture device names
+   * Returns a list of all capture devices, using the device's pretty display
+   * name.
+   * Multiple devices can have identical display names, appending ' #n' to devices
+   * with duplicate display names.
+   * 
+   * @return array of device names
+   * @webref capture
+   * @webBrief Get a list of all capture device names
    */
   static public String[] list() {
     Video.init();
@@ -760,25 +762,28 @@ public class Capture extends PImage implements PConstants {
     return out;
   }
 
-  // This is a temporary addition until it's decided how to bring back resolution/framerate caps to the official API.
+  // This is a temporary addition until it's decided how to bring back
+  // resolution/framerate caps to the official API.
   // The old way of doing things is still listed in the video tutorial:
   // https://processing.org/tutorials/video
   static public String[] getCapabilities(String device) {
-    for (int i=0; i < devices.size(); i++) {
+    for (int i = 0; i < devices.size(); i++) {
       String deviceName = assignDisplayName(devices.get(i), i);
-      if (devices.get(i).getDisplayName().equals(device) || devices.get(i).getName().equals(device) || deviceName.equals(device)) {
+      if (devices.get(i).getDisplayName().equals(device) || devices.get(i).getName().equals(device)
+          || deviceName.equals(device)) {
         return parseCaps(devices.get(i));
       }
     }
-    return new String[]{};
+    return new String[] {};
   }
 
   static private String[] parseCaps(Device dev) {
     String[] caps = dev.getCaps().toString().split(";");
     ArrayList<String> devCaps = new ArrayList<String>();
 
-    for (String cap: caps) {
-      if (cap.indexOf("video/x-raw,") == -1) continue; // Looking for raw caps (excluding GLMemory stuff)
+    for (String cap : caps) {
+      if (cap.indexOf("video/x-raw,") == -1)
+        continue; // Looking for raw caps (excluding GLMemory stuff)
 
       int indexWidth = cap.indexOf("width");
       int indexHeight = cap.indexOf("height");
@@ -793,12 +798,12 @@ public class Capture extends PImage implements PConstants {
         stringHeight = cap.substring(indexHeight, cap.indexOf(", format", indexHeight));
         stringFramerate = cap.substring(indexFramerate, cap.indexOf(']', indexFramerate));
       }
-//      PApplet.println("=======>", cap);
+      // PApplet.println("=======>", cap);
       if (0 < stringHeight.indexOf("{")) {
         // A list of heights... something like "height=(int){ 448, 600 }
         stringHeight = stringHeight.substring(13, stringHeight.length() - 1);
         String[] values = stringHeight.split(",");
-        for (String value: values) {
+        for (String value : values) {
           stringHeight = "height=(int)" + value.trim();
           addCapStringsToList(stringWidth, stringHeight, stringFramerate, devCaps);
         }
@@ -811,7 +816,8 @@ public class Capture extends PImage implements PConstants {
     return devCaps.toArray(out);
   }
 
-  static private void addCapStringsToList(String stringWidth, String stringHeight, String stringFramerate, ArrayList<String> devCaps) {
+  static private void addCapStringsToList(String stringWidth, String stringHeight, String stringFramerate,
+      ArrayList<String> devCaps) {
     if (0 < stringWidth.split("=").length) { // Expecting a string of the form "width=(int)1600"
       stringWidth = stringWidth.substring(11);
       try {
@@ -828,7 +834,8 @@ public class Capture extends PImage implements PConstants {
         stringHeight = "";
       }
     }
-    if (0 < stringFramerate.split("=,").length) { // Expecting a string of the form "framerate=(fraction)[ 5/1, 10000000/333333"
+    if (0 < stringFramerate.split("=,").length) { // Expecting a string of the form "framerate=(fraction)[ 5/1,
+                                                  // 10000000/333333"
       stringFramerate = stringFramerate.substring(stringFramerate.indexOf("="));
       String[] fpsParts = stringFramerate.split(",");
       if (1 < fpsParts.length) {
@@ -852,31 +859,30 @@ public class Capture extends PImage implements PConstants {
   }
 
   static private String assignDisplayName(Device d, int pos) {
-	  String s = "";
-	  int count = 1;
+    String s = "";
+    int count = 1;
 
-	  for(int i = 0; i < devices.size(); i++) {
-		  if (devices.get(i).getDisplayName().equals(d.getDisplayName())){
-			  if (i == pos) {
-				  s = d.getDisplayName() + " #" + Integer.toString(count);
-			  }
-			  count++;
-		  }
-	  }
+    for (int i = 0; i < devices.size(); i++) {
+      if (devices.get(i).getDisplayName().equals(d.getDisplayName())) {
+        if (i == pos) {
+          s = d.getDisplayName() + " #" + Integer.toString(count);
+        }
+        count++;
+      }
+    }
 
-	  return s;
+    return s;
   }
 
   static private int checkCameraDuplicates(Device d) {
-	  int count = 0;
-	  for (int i = 0; i < devices.size(); i++) {
-		  if (devices.get(i).getDisplayName().equals(d.getDisplayName())) {
-			  count++;
-		  }
-	  }
-	  return count;
+    int count = 0;
+    for (int i = 0; i < devices.size(); i++) {
+      if (devices.get(i).getDisplayName().equals(d.getDisplayName())) {
+        count++;
+      }
+    }
+    return count;
   }
-
 
   private class NewSampleListener implements AppSink.NEW_SAMPLE {
 
@@ -889,7 +895,7 @@ public class Capture extends PImage implements PConstants {
       sourceWidth = capsStruct.getInteger("width");
       sourceHeight = capsStruct.getInteger("height");
       Fraction fps = capsStruct.getFraction("framerate");
-      sourceFrameRate = (float)fps.numerator / fps.denominator;
+      sourceFrameRate = (float) fps.numerator / fps.denominator;
 
       // Set the playback rate to the file's native framerate
       // unless the user has already set a custom one
@@ -945,7 +951,6 @@ public class Capture extends PImage implements PConstants {
     }
   }
 
-
   private class NewPrerollListener implements AppSink.NEW_PREROLL {
     @Override
     public FlowReturn newPreroll(AppSink sink) {
@@ -956,7 +961,7 @@ public class Capture extends PImage implements PConstants {
       sourceWidth = capsStruct.getInteger("width");
       sourceHeight = capsStruct.getInteger("height");
       Fraction fps = capsStruct.getFraction("framerate");
-      sourceFrameRate = (float)fps.numerator / fps.denominator;
+      sourceFrameRate = (float) fps.numerator / fps.denominator;
 
       // Set the playback rate to the file's native framerate
       // unless the user has already set a custom one
@@ -967,5 +972,267 @@ public class Capture extends PImage implements PConstants {
       sample.dispose();
       return FlowReturn.OK;
     }
+  }
+
+  static class VideoFormat {
+    final int width;
+    final int height;
+    final Fraction framerate;
+    final float fps;
+
+    VideoFormat(int width, int height, Fraction framerate) {
+      this.width = width;
+      this.height = height;
+      this.framerate = framerate;
+      if (framerate != null) {
+        this.fps = framerate.getNumerator() /
+            (float) framerate.getDenominator();
+      } else {
+        this.fps = -1.0f;
+      }
+    }
+
+    String framerateString() {
+      if (framerate == null) {
+        return "";
+      }
+      return framerate.getNumerator() + "/" + framerate.getDenominator();
+    }
+  }
+
+  private static VideoFormat selectFormat(Device dev, int desiredWidth, int desiredHeight, float desiredFps) {
+    List<VideoFormat> formats = getSupportedFormats(dev, desiredFps);
+    if (formats.isEmpty()) {
+      return null;
+    }
+
+    int minDiff = 100000;// Integer.MAX_VALUE;
+    int bestIndex = 0;
+    for (int i = 0; i < formats.size(); i++) {
+      VideoFormat format = formats.get(i);
+      if (format.width == desiredWidth && format.height == desiredHeight) {
+        bestIndex = i;
+        break;
+      }
+      int diff = Math.abs(format.width + format.height - desiredWidth - desiredHeight);
+      if (diff < minDiff) {
+        minDiff = diff;
+        bestIndex = i;
+      }
+    }
+
+    VideoFormat best = formats.get(bestIndex);
+    return new VideoFormat(best.width, best.height, best.framerate);
+  }
+
+  private static List<VideoFormat> getSupportedFormats(Device dev, float desiredFps) {
+    Caps caps = dev.getCaps();
+    Map<String, VideoFormat> formatsBySize = new LinkedHashMap<>();
+
+    for (int i = 0; i < caps.size(); i++) {
+      Structure structure = caps.getStructure(i);
+      List<int[]> sizes = getSizesFromStructure(structure);
+      if (sizes.isEmpty()) {
+        continue;
+      }
+
+      List<Fraction> framerates = getFrameratesFromStructure(structure);
+      Fraction fps = chooseFramerate(framerates, desiredFps);
+
+      for (int[] size : sizes) {
+        VideoFormat candidate = new VideoFormat(size[0], size[1], fps);
+        String key = size[0] + "x" + size[1];
+        VideoFormat existing = formatsBySize.get(key);
+        if (isBetterFormat(candidate, existing, desiredFps)) {
+          formatsBySize.put(key, candidate);
+        }
+      }
+    }
+    return new ArrayList<>(formatsBySize.values());
+  }
+
+  private static boolean isBetterFormat(VideoFormat candidate, VideoFormat existing, float desiredFps) {
+    if (existing == null) {
+      return true;
+    }
+    if (candidate.framerate == null) {
+      return false;
+    }
+    if (existing.framerate == null) {
+      return true;
+    }
+
+    if (desiredFps > 0) {
+      float candDiff = Math.abs(desiredFps - candidate.fps);
+      float existDiff = Math.abs(desiredFps - existing.fps);
+      return candDiff < existDiff;
+    }
+    return candidate.fps > existing.fps;
+  }
+
+  private static List<int[]> getSizesFromStructure(Structure structure) {
+    List<int[]> sizes = new ArrayList<>();
+    GValue widthValue = GSTSTRUCTURE_API.gst_structure_get_value(structure, "width");
+    GValue heightValue = GSTSTRUCTURE_API.gst_structure_get_value(structure, "height");
+    if (widthValue == null || heightValue == null) {
+      return sizes;
+    }
+
+    GType widthType = widthValue.getType();
+    GType heightType = heightValue.getType();
+
+    if (widthType.equals(GType.INT) && heightType.equals(GType.INT)) {
+      sizes.add(new int[] { widthValue.toInt(), heightValue.toInt() });
+      return sizes;
+    }
+
+    if (widthType.equals(GSTVALUE_API.gst_value_list_get_type()) ||
+        heightType.equals(GSTVALUE_API.gst_value_list_get_type())) {
+      List<Integer> widths = getIntList(widthValue);
+      List<Integer> heights = getIntList(heightValue);
+
+      if (widths.isEmpty() || heights.isEmpty()) {
+        return sizes;
+      }
+
+      if (widths.size() == heights.size()) {
+        for (int i = 0; i < widths.size(); i++) {
+          sizes.add(new int[] { widths.get(i), heights.get(i) });
+        }
+      } else if (widths.size() == 1) {
+        int w = widths.get(0);
+        for (int h : heights) {
+          sizes.add(new int[] { w, h });
+        }
+      } else if (heights.size() == 1) {
+        int h = heights.get(0);
+        for (int w : widths) {
+          sizes.add(new int[] { w, h });
+        }
+      }
+      return sizes;
+    }
+
+    if (widthType.equals(GSTVALUE_API.gst_int_range_get_type()) &&
+        heightType.equals(GSTVALUE_API.gst_int_range_get_type())) {
+      int minWidth = GSTVALUE_API.gst_value_get_int_range_min(widthValue);
+      int maxWidth = GSTVALUE_API.gst_value_get_int_range_max(widthValue);
+      int minHeight = GSTVALUE_API.gst_value_get_int_range_min(heightValue);
+      int maxHeight = GSTVALUE_API.gst_value_get_int_range_max(heightValue);
+
+      int curWidth = minWidth;
+      int curHeight = minHeight;
+      while (curWidth <= maxWidth && curHeight <= maxHeight) {
+        sizes.add(new int[] { curWidth, curHeight });
+        curWidth *= 2;
+        curHeight *= 2;
+      }
+
+      curWidth = maxWidth;
+      curHeight = maxHeight;
+      while (curWidth > minWidth && curHeight > minHeight) {
+        sizes.add(new int[] { curWidth, curHeight });
+        curWidth /= 2;
+        curHeight /= 2;
+      }
+    }
+    return sizes;
+  }
+
+  private static List<Integer> getIntList(GValue gValue) {
+    List<Integer> values = new ArrayList<>();
+    if (gValue == null) {
+      return values;
+    }
+    GType gType = gValue.getType();
+    if (gType.equals(GType.INT)) {
+      values.add(gValue.toInt());
+      return values;
+    }
+    if (!gType.equals(GSTVALUE_API.gst_value_list_get_type())) {
+      return values;
+    }
+
+    int size = GSTVALUE_API.gst_value_list_get_size(gValue);
+    for (int i = 0; i < size; i++) {
+      GValue val = GSTVALUE_API.gst_value_list_get_value(gValue, i);
+      Integer parsed = val.toInt();
+      if (parsed != null) {
+        values.add(parsed);
+      }
+    }
+    return values;
+  }
+
+  private static List<Fraction> getFrameratesFromStructure(Structure structure) {
+    List<Fraction> framerates = new ArrayList<>();
+    GValue gValue = GSTSTRUCTURE_API.gst_structure_get_value(structure, "framerate");
+    if (gValue == null) {
+      return framerates;
+    }
+
+    GType gType = gValue.getType();
+    if (gType.equals(GSTVALUE_API.gst_value_list_get_type())) {
+      int size = GSTVALUE_API.gst_value_list_get_size(gValue);
+      for (int i = 0; i < size; i++) {
+        GValue val = GSTVALUE_API.gst_value_list_get_value(gValue, i);
+        int num = GSTVALUE_API.gst_value_get_fraction_numerator(val);
+        int den = GSTVALUE_API.gst_value_get_fraction_denominator(val);
+        framerates.add(new Fraction(num, den));
+      }
+    } else if (gType.equals(GSTVALUE_API.gst_fraction_get_type())) {
+      int num = GSTVALUE_API.gst_value_get_fraction_numerator(gValue);
+      int den = GSTVALUE_API.gst_value_get_fraction_denominator(gValue);
+      framerates.add(new Fraction(num, den));
+    } else if (gType.equals(GSTVALUE_API.gst_fraction_range_get_type())) {
+      GValue minVal = GSTVALUE_API.gst_value_get_fraction_range_min(gValue);
+      GValue maxVal = GSTVALUE_API.gst_value_get_fraction_range_max(gValue);
+      int minNum = GSTVALUE_API.gst_value_get_fraction_numerator(minVal);
+      int minDen = GSTVALUE_API.gst_value_get_fraction_denominator(minVal);
+      int maxNum = GSTVALUE_API.gst_value_get_fraction_numerator(maxVal);
+      int maxDen = GSTVALUE_API.gst_value_get_fraction_denominator(maxVal);
+
+      if (maxDen == 1 && maxNum > 1000000) {
+        maxNum = 1000;
+      }
+
+      for (int i = minNum; i <= maxNum; i++) {
+        for (int j = minDen; j <= maxDen; j++) {
+          framerates.add(new Fraction(i, j));
+        }
+      }
+    }
+    return framerates;
+  }
+
+  private static Fraction chooseFramerate(List<Fraction> framerates, float desiredFps) {
+    if (framerates == null || framerates.isEmpty()) {
+      return null;
+    }
+
+    Fraction best = framerates.get(0);
+    float bestFps = best.getNumerator() / (float) best.getDenominator();
+
+    if (desiredFps > 0) {
+      float bestDiff = Math.abs(desiredFps - bestFps);
+      for (Fraction fraction : framerates) {
+        float fps = fraction.getNumerator() / (float) fraction.getDenominator();
+        float diff = Math.abs(desiredFps - fps);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          best = fraction;
+          bestFps = fps;
+        }
+      }
+    } else {
+      for (Fraction fraction : framerates) {
+        float fps = fraction.getNumerator() / (float) fraction.getDenominator();
+        if (fps > bestFps) {
+          best = fraction;
+          bestFps = fps;
+        }
+      }
+    }
+    return best;
   }
 }
